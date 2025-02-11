@@ -343,7 +343,7 @@ export default function WallpaperPage() {
                   alt={item.name}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    "              e.targe".src = PLACEHOLDER_IMAGE;
+                    e.target.src = PLACEHOLDER_IMAGE;
                     e.target.onerror = null;
                   }}
                 />

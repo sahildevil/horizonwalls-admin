@@ -1,12 +1,16 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Plus, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+
+// Add this constant at the top of your file
+const PLACEHOLDER_IMAGE =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIyNSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIyNSIgZmlsbD0iI2VlZWVlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZpbHk9IkFyaWFsIiBmb250LXNpemU9IjIwIiBmaWxsPSIjOTk5OTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbiI+SW1hZ2Ugbm90IGZvdW5kPC90ZXh0Pjwvc3ZnPg==";
 
 export default function WallpaperPage() {
   const [wallpaper, setWallpaper] = useState({
     name: "",
     image: "",
-    category: "",
+    category: "", // This will now store category ID
   });
   const [wallpapers, setWallpapers] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -49,7 +53,7 @@ export default function WallpaperPage() {
     try {
       let url = `http://localhost:8000/api/wallpapers?page=${currentPage}`;
       if (selectedCategory) {
-        url += `&category=${selectedCategory}`;
+        url += `&category=${selectedCategory}`; // Now sending category ID
       }
       if (searchValue) {
         url += `&searchValue=${searchValue}`;
@@ -60,7 +64,6 @@ export default function WallpaperPage() {
 
       if (data.success) {
         setWallpapers(data.wallpapers);
-        // Assuming backend sends total count or pages
         setTotalPages(Math.ceil(data.total / 10) || 1);
       }
     } catch (error) {
@@ -107,6 +110,54 @@ export default function WallpaperPage() {
     }
   };
 
+  // Update the getCategoryName function
+  const getCategoryName = (categoryId) => {
+    // Add debug logging
+    console.log("Looking for category:", categoryId);
+    console.log("Available categories:", categories);
+
+    const category = categories.find((cat) => cat._id === categoryId);
+    if (!category) {
+      console.log("Category not found for ID:", categoryId);
+      return "Unknown";
+    }
+    return category.name;
+  };
+
+  // Add the delete handler function
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this wallpaper?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/wallpapers/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMessage({
+          type: "success",
+          text: "Wallpaper deleted successfully!",
+        });
+        fetchWallpapers(); // Refresh the list
+      } else {
+        throw new Error(data.error || "Failed to delete wallpaper");
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      setMessage({
+        type: "error",
+        text: error.message || "Error deleting wallpaper",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -132,7 +183,9 @@ export default function WallpaperPage() {
           >
             <option value="">All Categories</option>
             {categories.map((cat) => (
-              <option key={cat._id} value={cat.name}>
+              <option key={cat._id} value={cat._id}>
+                {" "}
+                {/* Changed from cat.name to cat._id */}
                 {cat.name}
               </option>
             ))}
@@ -185,14 +238,26 @@ export default function WallpaperPage() {
                 />
               </div>
 
-              {wallpaper.image && !imageError && (
-                <div className="h-48 border rounded-lg overflow-hidden bg-gray-100">
-                  <img
-                    src={wallpaper.image}
-                    alt="Preview"
-                    className="w-full h-full object-contain"
-                    onError={() => setImageError(true)}
-                  />
+              {wallpaper.image && (
+                <div>
+                  <div className="h-48 border rounded-lg overflow-hidden bg-gray-100">
+                    <img
+                      src={wallpaper.image}
+                      alt="Preview"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        setImageError(true);
+                        e.target.src = PLACEHOLDER_IMAGE;
+                        e.target.onerror = null;
+                      }}
+                    />
+                  </div>
+                  {imageError && (
+                    <p className="mt-2 text-yellow-600 text-sm">
+                      ⚠️ Warning: Image preview failed to load. You can still
+                      submit, but please verify the URL is correct.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -213,7 +278,9 @@ export default function WallpaperPage() {
                 >
                   <option value="">Select Category</option>
                   {categories.map((cat) => (
-                    <option key={cat._id} value={cat.name}>
+                    <option key={cat._id} value={cat._id}>
+                      {" "}
+                      {/* Changed from cat.name to cat._id */}
                       {cat.name}
                     </option>
                   ))}
@@ -235,9 +302,9 @@ export default function WallpaperPage() {
               <div className="flex gap-4">
                 <button
                   type="submit"
-                  disabled={loading || imageError}
+                  disabled={loading}
                   className={`flex-1 ${
-                    loading || imageError ? "bg-blue-400" : "bg-blue-600"
+                    loading ? "bg-blue-400" : "bg-blue-600"
                   } text-white py-2 rounded-lg hover:bg-blue-700 transition`}
                 >
                   {loading ? "Adding..." : "Add Wallpaper"}
@@ -259,21 +326,35 @@ export default function WallpaperPage() {
           {wallpapers.map((item) => (
             <div
               key={item._id}
-              className="bg-white rounded-lg shadow overflow-hidden"
+              className="bg-white rounded-lg shadow overflow-hidden relative group"
             >
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => handleDelete(item._id)}
+                  className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
+                  title="Delete wallpaper"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
               <div className="aspect-w-16 aspect-h-9">
                 <img
                   src={item.image}
                   alt={item.name}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.target.src = "/api/placeholder/400/225";
+                    "              e.targe".src = PLACEHOLDER_IMAGE;
+                    e.target.onerror = null;
                   }}
                 />
               </div>
               <div className="p-4">
                 <h3 className="font-medium text-gray-800">{item.name}</h3>
-                <span className="text-sm text-gray-500">{item.category}</span>
+                <span className="text-sm text-gray-500">
+                  {item.category?.name ||
+                    getCategoryName(item.category) ||
+                    "Unknown"}
+                </span>
               </div>
             </div>
           ))}

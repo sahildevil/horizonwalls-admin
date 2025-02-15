@@ -4,12 +4,19 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const [credentials, setCredentials] = useState({ username: "", password: "" });
+  const [credentials, setCredentials] = useState({
+    username: "",
+    password: "",
+  });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
+
     try {
       const res = await signIn("credentials", {
         username: credentials.username,
@@ -17,14 +24,16 @@ export default function LoginPage() {
         redirect: false,
       });
 
-      if (res.error) {
+      if (res?.error) {
         setError("Invalid credentials");
-      } else {
+      } else if (res?.ok) {
         router.push("/");
         router.refresh();
       }
     } catch (error) {
       setError("An error occurred");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -48,6 +57,7 @@ export default function LoginPage() {
               }
               className="w-full p-2 border rounded"
               required
+              disabled={loading}
             />
           </div>
           <div>
@@ -60,13 +70,15 @@ export default function LoginPage() {
               }
               className="w-full p-2 border rounded"
               required
+              disabled={loading}
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-blue-400"
+            disabled={loading}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
       </div>

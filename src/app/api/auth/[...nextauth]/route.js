@@ -1,29 +1,20 @@
-import NextAuth from "next-auth";
+import NextAuth from "next-auth/next";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-
-// Hash the admin password at startup
-const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
 
 const handler = NextAuth({
   providers: [
     CredentialsProvider({
-      name: "Credentials",
+      name: "credentials",
       credentials: {
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password) return null;
-
-        const isValidUsername =
-          credentials.username === process.env.ADMIN_USERNAME;
-        const isValidPassword = await bcrypt.compare(
-          credentials.password,
-          hashedPassword
-        );
-
-        if (isValidUsername && isValidPassword) {
+        // Check if credentials match environment variables
+        if (
+          credentials?.username === process.env.ADMIN_USERNAME &&
+          credentials?.password === process.env.ADMIN_PASSWORD
+        ) {
           return {
             id: "1",
             name: "Admin",

@@ -39,7 +39,7 @@ export default function WallpaperPage() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/categories");
+      const response = await fetch("https://horizonwalls-server.vercel.app/api/categories");
       const data = await response.json();
       if (data.success) {
         setCategories(data.category);
@@ -51,7 +51,7 @@ export default function WallpaperPage() {
 
   const fetchWallpapers = async () => {
     try {
-      let url = `http://localhost:8000/api/wallpapers?page=${currentPage}`;
+      let url = `http://horizonwalls-server.vercel.app/api/wallpapers?page=${currentPage}`;
       if (selectedCategory) {
         url += `&category=${selectedCategory}`; // Now sending category ID
       }
@@ -81,7 +81,7 @@ export default function WallpaperPage() {
     setMessage({ type: "", text: "" });
 
     try {
-      const response = await fetch("http://localhost:8000/api/wallpapers", {
+      const response = await fetch("http://horizonwalls-server.vercel.app/api/wallpapers", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,7 +132,7 @@ export default function WallpaperPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/wallpapers/${id}`,
+        `http://horizonwalls-server.vercel.app/api/wallpapers/${id}`,
         {
           method: "DELETE",
         }

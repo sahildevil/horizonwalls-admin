@@ -39,9 +39,7 @@ export default function WallpaperPage() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(
-        "https://horizonwalls-server.vercel.app/api/categories"
-      );
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories`);
       const data = await response.json();
       if (data.success) {
         setCategories(data.category);
@@ -50,35 +48,9 @@ export default function WallpaperPage() {
       console.error("Error fetching categories:", error);
     }
   };
-
-  // const fetchWallpapers = async () => {
-  //   try {
-  //     let url = `https://horizonwalls-server.vercel.app/api/wallpapers?page=${currentPage}`;
-  //     if (selectedCategory) {
-  //       url += `&category=${selectedCategory}`; // Now sending category ID
-  //     }
-  //     if (searchValue) {
-  //       url += `&searchValue=${searchValue}`;
-  //     }
-
-  //     const response = await fetch(url);
-  //     const data = await response.json();
-
-  //     if (data.success) {
-  //       setWallpapers(data.wallpapers);
-  //       setTotalPages(Math.ceil(data.total / 10) || 1);
-  //     }
-  //   } catch (error) {
-  //     console.error("Error fetching wallpapers:", error);
-  //     setMessage({
-  //       type: "error",
-  //       text: "Failed to load wallpapers. Please try again.",
-  //     });
-  //   }
-  // };
   const fetchWallpapers = async () => {
     try {
-      let url = `https://horizonwalls-server.vercel.app/api/wallpapers?page=${currentPage}&limit=20`; // Changed limit to 20
+      let url = `${process.env.NEXT_PUBLIC_API_URL}/wallpapers?page=${currentPage}&limit=20`; // Changed limit to 20
       if (selectedCategory) {
         url += `&category=${selectedCategory}`;
       }
@@ -110,7 +82,7 @@ export default function WallpaperPage() {
 
     try {
       const response = await fetch(
-        "https://horizonwalls-server.vercel.app/api/wallpapers",
+        `${process.env.NEXT_PUBLIC_API_URL}/wallpapers`,
         {
           method: "POST",
           headers: {
@@ -163,7 +135,7 @@ export default function WallpaperPage() {
 
     try {
       const response = await fetch(
-        `https://horizonwalls-server.vercel.app/api/wallpapers/${id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/wallpapers/${id}`,
         {
           method: "DELETE",
         }

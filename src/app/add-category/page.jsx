@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 
 // Updated API URL to match backend route
-const API_URL = "https://horizonwalls-server.vercel.app/api/categories"; // Changed from category to categories
+const API_URL = process.env.NEXT_PUBLIC_API_URL + "/categories"; // Changed from category to categories
 
 export default function Page() {
   const [category, setCategory] = useState({

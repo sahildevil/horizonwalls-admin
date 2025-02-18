@@ -39,7 +39,9 @@ export default function WallpaperPage() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch("https://horizonwalls-server.vercel.app/api/categories");
+      const response = await fetch(
+        "https://horizonwalls-server.vercel.app/api/categories"
+      );
       const data = await response.json();
       if (data.success) {
         setCategories(data.category);
@@ -49,11 +51,36 @@ export default function WallpaperPage() {
     }
   };
 
+  // const fetchWallpapers = async () => {
+  //   try {
+  //     let url = `https://horizonwalls-server.vercel.app/api/wallpapers?page=${currentPage}`;
+  //     if (selectedCategory) {
+  //       url += `&category=${selectedCategory}`; // Now sending category ID
+  //     }
+  //     if (searchValue) {
+  //       url += `&searchValue=${searchValue}`;
+  //     }
+
+  //     const response = await fetch(url);
+  //     const data = await response.json();
+
+  //     if (data.success) {
+  //       setWallpapers(data.wallpapers);
+  //       setTotalPages(Math.ceil(data.total / 10) || 1);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching wallpapers:", error);
+  //     setMessage({
+  //       type: "error",
+  //       text: "Failed to load wallpapers. Please try again.",
+  //     });
+  //   }
+  // };
   const fetchWallpapers = async () => {
     try {
-      let url = `https://horizonwalls-server.vercel.app/api/wallpapers?page=${currentPage}`;
+      let url = `https://horizonwalls-server.vercel.app/api/wallpapers?page=${currentPage}&limit=20`; // Changed limit to 20
       if (selectedCategory) {
-        url += `&category=${selectedCategory}`; // Now sending category ID
+        url += `&category=${selectedCategory}`;
       }
       if (searchValue) {
         url += `&searchValue=${searchValue}`;
@@ -64,7 +91,8 @@ export default function WallpaperPage() {
 
       if (data.success) {
         setWallpapers(data.wallpapers);
-        setTotalPages(Math.ceil(data.total / 10) || 1);
+        // Update total pages calculation based on new limit of 20
+        setTotalPages(Math.ceil(data.total / 20) || 1);
       }
     } catch (error) {
       console.error("Error fetching wallpapers:", error);
@@ -74,20 +102,23 @@ export default function WallpaperPage() {
       });
     }
   };
-
+  const [loadingPage, setLoadingPage] = useState(false);
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: "", text: "" });
 
     try {
-      const response = await fetch("https://horizonwalls-server.vercel.app/api/wallpapers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(wallpaper),
-      });
+      const response = await fetch(
+        "https://horizonwalls-server.vercel.app/api/wallpapers",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(wallpaper),
+        }
+      );
 
       const data = await response.json();
 

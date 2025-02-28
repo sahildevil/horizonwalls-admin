@@ -15,6 +15,7 @@ export default function Page() {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [imageError, setImageError] = useState(false);
 
+  // Replace fetchCategories function
   const fetchCategories = async () => {
     try {
       const response = await fetch(API_URL);
@@ -24,13 +25,8 @@ export default function Page() {
       }
 
       const data = await response.json();
-
-      if (data.success) {
-        setCategories(data.category);
-        setMessage({ type: "", text: "" });
-      } else {
-        throw new Error(data.error || "Failed to fetch categories");
-      }
+      setCategories(data);
+      setMessage({ type: "", text: "" });
     } catch (error) {
       console.error("Error fetching categories:", error);
       setMessage({
@@ -48,18 +44,25 @@ export default function Page() {
     fetchCategories();
   }, []);
 
+  // Update handleSubmit function to handle Appwrite response
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: "", text: "" });
 
     try {
+      // Update the payload structure to match what your API expects
+      const categoryData = {
+        name: category.name,
+        imageUrl: category.image, // Change from image to imageUrl to match backend
+      };
+
       const response = await fetch(API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(category),
+        body: JSON.stringify(categoryData),
       });
 
       if (!response.ok) {
@@ -67,15 +70,10 @@ export default function Page() {
       }
 
       const data = await response.json();
-
-      if (data.success) {
-        setMessage({ type: "success", text: "Category added successfully!" });
-        setCategory({ name: "", image: "" });
-        setImageError(false);
-        fetchCategories();
-      } else {
-        throw new Error(data.error || "Failed to add category");
-      }
+      setMessage({ type: "success", text: "Category added successfully!" });
+      setCategory({ name: "", image: "" });
+      setImageError(false);
+      fetchCategories();
     } catch (error) {
       console.error("Error:", error);
       setMessage({
@@ -90,6 +88,7 @@ export default function Page() {
     }
   };
 
+  // Update handleDelete function
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this category?")) {
       return;
@@ -104,14 +103,8 @@ export default function Page() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-
-      if (data.success) {
-        setMessage({ type: "success", text: "Category deleted successfully!" });
-        fetchCategories();
-      } else {
-        throw new Error(data.error || "Failed to delete category");
-      }
+      setMessage({ type: "success", text: "Category deleted successfully!" });
+      fetchCategories();
     } catch (error) {
       console.error("Error:", error);
       setMessage({
@@ -228,18 +221,18 @@ export default function Page() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {categories.map((cat) => (
                 <div
-                  key={cat._id}
+                  key={cat.$id} // Use $id instead of _id
                   className="border rounded-lg p-4 relative group"
                 >
                   <button
-                    onClick={() => handleDelete(cat._id)}
+                    onClick={() => handleDelete(cat.$id)} // Use $id
                     className="absolute top-2 right-2 p-1 rounded-full bg-red-100 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <Trash2 size={16} />
                   </button>
                   <div className="h-32 mb-2">
                     <img
-                      src={cat.image}
+                      src={cat.imageUrl} // Use imageUrl instead of image
                       alt={cat.name}
                       className="w-full h-full object-contain"
                       onError={(e) => {

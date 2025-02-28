@@ -37,20 +37,26 @@ export default function WallpaperPage() {
     fetchWallpapers();
   }, [currentPage, selectedCategory, searchValue]);
 
+  // Update fetchCategories
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories`);
-      const data = await response.json();
-      if (data.success) {
-        setCategories(data.category);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/categories`
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      const data = await response.json();
+      setCategories(data);
     } catch (error) {
       console.error("Error fetching categories:", error);
     }
   };
+
+  // Update fetchWallpapers
   const fetchWallpapers = async () => {
     try {
-      let url = `${process.env.NEXT_PUBLIC_API_URL}/wallpapers?page=${currentPage}&limit=20`; // Changed limit to 20
+      let url = `${process.env.NEXT_PUBLIC_API_URL}/wallpapers?page=${currentPage}&limit=20`;
       if (selectedCategory) {
         url += `&category=${selectedCategory}`;
       }
@@ -59,13 +65,13 @@ export default function WallpaperPage() {
       }
 
       const response = await fetch(url);
-      const data = await response.json();
-
-      if (data.success) {
-        setWallpapers(data.wallpapers);
-        // Update total pages calculation based on new limit of 20
-        setTotalPages(Math.ceil(data.total / 20) || 1);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      const data = await response.json();
+      setWallpapers(data);
+      // This is an estimate since Appwrite doesn't return total count directly
+      setTotalPages(Math.ceil(data.length / 20) || 1);
     } catch (error) {
       console.error("Error fetching wallpapers:", error);
       setMessage({
@@ -74,13 +80,35 @@ export default function WallpaperPage() {
       });
     }
   };
+
   const [loadingPage, setLoadingPage] = useState(false);
+
+  // Update handleSubmit
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: "", text: "" });
 
+    // Validate image URL
+    if (!wallpaper.image || wallpaper.image.trim() === "") {
+      setMessage({
+        type: "error",
+        text: "Image URL is required",
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
+      // Create wallpaper data to match your API
+      const wallpaperData = {
+        title: wallpaper.name,
+        categoryId: wallpaper.category,
+        imageUrl: wallpaper.image, // This is the key change - explicitly mapping image to imageUrl
+      };
+
+      console.log("Sending data to API:", wallpaperData); // Debug log
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/wallpapers`,
         {
@@ -88,22 +116,25 @@ export default function WallpaperPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(wallpaper),
+          body: JSON.stringify(wallpaperData),
         }
       );
 
-      const data = await response.json();
-
-      if (data.success) {
-        setMessage({ type: "success", text: "Wallpaper added successfully!" });
-        setWallpaper({ name: "", image: "", category: "" });
-        setImageError(false);
-        setShowForm(false);
-        fetchWallpapers();
-      } else {
-        throw new Error(data.error || "Failed to add wallpaper");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
       }
+
+      const data = await response.json();
+      setMessage({ type: "success", text: "Wallpaper added successfully!" });
+      setWallpaper({ name: "", image: "", category: "" });
+      setImageError(false);
+      setShowForm(false);
+      fetchWallpapers();
     } catch (error) {
+      console.error("Submit error:", error); // Debug log
       setMessage({
         type: "error",
         text: error.message || "Error adding wallpaper",
@@ -115,11 +146,7 @@ export default function WallpaperPage() {
 
   // Update the getCategoryName function
   const getCategoryName = (categoryId) => {
-    // Add debug logging
-    console.log("Looking for category:", categoryId);
-    console.log("Available categories:", categories);
-
-    const category = categories.find((cat) => cat._id === categoryId);
+    const category = categories.find((cat) => cat.$id === categoryId);
     if (!category) {
       console.log("Category not found for ID:", categoryId);
       return "Unknown";
@@ -127,7 +154,7 @@ export default function WallpaperPage() {
     return category.name;
   };
 
-  // Add the delete handler function
+  // Update handleDelete
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this wallpaper?")) {
       return;
@@ -141,17 +168,15 @@ export default function WallpaperPage() {
         }
       );
 
-      const data = await response.json();
-
-      if (data.success) {
-        setMessage({
-          type: "success",
-          text: "Wallpaper deleted successfully!",
-        });
-        fetchWallpapers(); // Refresh the list
-      } else {
-        throw new Error(data.error || "Failed to delete wallpaper");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      setMessage({
+        type: "success",
+        text: "Wallpaper deleted successfully!",
+      });
+      fetchWallpapers();
     } catch (error) {
       console.error("Delete error:", error);
       setMessage({
@@ -186,7 +211,7 @@ export default function WallpaperPage() {
           >
             <option value="">All Categories</option>
             {categories.map((cat) => (
-              <option key={cat._id} value={cat._id}>
+              <option key={cat.$id} value={cat.$id}>
                 {" "}
                 {/* Changed from cat.name to cat._id */}
                 {cat.name}
@@ -281,7 +306,7 @@ export default function WallpaperPage() {
                 >
                   <option value="">Select Category</option>
                   {categories.map((cat) => (
-                    <option key={cat._id} value={cat._id}>
+                    <option key={cat.$id} value={cat.$id}>
                       {" "}
                       {/* Changed from cat.name to cat._id */}
                       {cat.name}
@@ -328,12 +353,12 @@ export default function WallpaperPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {wallpapers.map((item) => (
             <div
-              key={item._id}
+              key={item.$id} // Changed from _id to $id
               className="bg-white rounded-lg shadow overflow-hidden relative group"
             >
               <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
-                  onClick={() => handleDelete(item._id)}
+                  onClick={() => handleDelete(item.$id)} // Changed from _id to $id
                   className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
                   title="Delete wallpaper"
                 >
@@ -342,8 +367,8 @@ export default function WallpaperPage() {
               </div>
               <div className="aspect-w-16 aspect-h-9">
                 <img
-                  src={item.image}
-                  alt={item.name}
+                  src={item.imageUrl} // Changed from image to imageUrl
+                  alt={item.title} // Changed from name to title
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     e.target.src = PLACEHOLDER_IMAGE;
@@ -352,11 +377,11 @@ export default function WallpaperPage() {
                 />
               </div>
               <div className="p-4">
-                <h3 className="font-medium text-gray-800">{item.name}</h3>
+                <h3 className="font-medium text-gray-800">{item.title}</h3>{" "}
+                {/* Changed from name to title */}
                 <span className="text-sm text-gray-500">
-                  {item.category?.name ||
-                    getCategoryName(item.category) ||
-                    "Unknown"}
+                  {getCategoryName(item.categoryId) || "Unknown"}{" "}
+                  {/* Changed from category to categoryId */}
                 </span>
               </div>
             </div>

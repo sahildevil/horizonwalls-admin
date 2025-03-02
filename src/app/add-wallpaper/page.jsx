@@ -10,7 +10,7 @@ export default function WallpaperPage() {
   const [wallpaper, setWallpaper] = useState({
     name: "",
     image: "",
-    category: "", // This will now store category ID
+    category: "",
   });
   const [wallpapers, setWallpapers] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -23,19 +23,26 @@ export default function WallpaperPage() {
   const [searchValue, setSearchValue] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  // Pagination states (updated for cursor-based pagination)
+  const [nextCursor, setNextCursor] = useState(null);
+  const [prevCursors, setPrevCursors] = useState([]); // Stack to store previous cursors
+  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1); // Keep this for UI only
+  const [loadingWallpapers, setLoadingWallpapers] = useState(false);
 
   // Fetch categories for the dropdown
   useEffect(() => {
     fetchCategories();
   }, []);
 
-  // Fetch wallpapers with filters
+  // Fetch wallpapers when filters change (but not when cursor changes)
   useEffect(() => {
-    fetchWallpapers();
-  }, [currentPage, selectedCategory, searchValue]);
+    // Reset pagination when filters change
+    setNextCursor(null);
+    setPrevCursors([]);
+    setCurrentPage(1);
+    fetchWallpapers(true);
+  }, [selectedCategory, searchValue]);
 
   // Update fetchCategories
   const fetchCategories = async () => {
@@ -53,37 +60,112 @@ export default function WallpaperPage() {
     }
   };
 
-  // Update fetchWallpapers
-  const fetchWallpapers = async () => {
+  // Update fetchWallpapers to use cursor-based pagination
+  const fetchWallpapers = async (isReset = false) => {
+    setLoadingWallpapers(true);
     try {
-      let url = `${process.env.NEXT_PUBLIC_API_URL}/wallpapers?page=${currentPage}&limit=20`;
+      // Build URL with query parameters
+      let url = `${process.env.NEXT_PUBLIC_API_URL}/wallpapers?limit=20`;
+
+      // Only add cursor for pagination if not resetting
+      if (!isReset && nextCursor) {
+        url += `&cursor=${nextCursor}`;
+      }
+
+      // Add filters
       if (selectedCategory) {
         url += `&category=${selectedCategory}`;
       }
       if (searchValue) {
-        url += `&searchValue=${searchValue}`;
+        url += `&search=${searchValue}`;
       }
+
+      console.log("Fetching wallpapers from:", url);
 
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const data = await response.json();
+
+      const responseData = await response.json();
+      console.log("Wallpaper response:", responseData);
+
+      const data = responseData.documents || responseData;
+      const paginationInfo = responseData.pagination;
+
       setWallpapers(data);
-      // This is an estimate since Appwrite doesn't return total count directly
-      setTotalPages(Math.ceil(data.length / 20) || 1);
+
+      // Update pagination state based on response
+      if (paginationInfo) {
+        setHasMore(!!paginationInfo.nextCursor);
+
+        // Only update nextCursor if this isn't a reset
+        if (!isReset) {
+          // Store current cursor in prevCursors before updating to next
+          if (nextCursor) {
+            setPrevCursors((prev) => [...prev, nextCursor]);
+          }
+        } else {
+          // If reset, clear previous cursors
+          setPrevCursors([]);
+        }
+
+        // Update to new nextCursor
+        setNextCursor(paginationInfo.nextCursor);
+      } else {
+        // Fallback to determining hasMore based on data length
+        setHasMore(data.length >= 20);
+      }
     } catch (error) {
       console.error("Error fetching wallpapers:", error);
       setMessage({
         type: "error",
         text: "Failed to load wallpapers. Please try again.",
       });
+    } finally {
+      setLoadingWallpapers(false);
     }
   };
 
-  const [loadingPage, setLoadingPage] = useState(false);
+  // Handle next page
+  const handleNextPage = () => {
+    if (hasMore) {
+      setCurrentPage((prev) => prev + 1);
+      fetchWallpapers(false); // Use existing nextCursor
+    }
+  };
 
-  // Update handleSubmit
+  // Handle previous page
+  const handlePrevPage = () => {
+    if (prevCursors.length > 0) {
+      // Pop the last cursor from the stack
+      const newPrevCursors = [...prevCursors];
+      const prevCursor = newPrevCursors.pop();
+
+      // Go back one page
+      setCurrentPage((prev) => prev - 1);
+      setNextCursor(prevCursor); // Use the previous cursor as the new next cursor
+      setPrevCursors(newPrevCursors); // Update the stack
+
+      // Fetch wallpapers with the updated nextCursor
+      fetchWallpapers(false);
+    } else if (currentPage > 1) {
+      // If no previous cursors but currentPage > 1, go to first page
+      setCurrentPage(1);
+      setNextCursor(null);
+      setPrevCursors([]);
+      fetchWallpapers(true);
+    }
+  };
+
+  // Reset pagination
+  const resetPagination = () => {
+    setNextCursor(null);
+    setPrevCursors([]);
+    setCurrentPage(1);
+    fetchWallpapers(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -132,7 +214,7 @@ export default function WallpaperPage() {
       setWallpaper({ name: "", image: "", category: "" });
       setImageError(false);
       setShowForm(false);
-      fetchWallpapers();
+      resetPagination(); // Reset to first page to show the new wallpaper
     } catch (error) {
       console.error("Submit error:", error); // Debug log
       setMessage({
@@ -176,7 +258,7 @@ export default function WallpaperPage() {
         type: "success",
         text: "Wallpaper deleted successfully!",
       });
-      fetchWallpapers();
+      fetchWallpapers(false); // Refresh current page
     } catch (error) {
       console.error("Delete error:", error);
       setMessage({
@@ -212,8 +294,6 @@ export default function WallpaperPage() {
             <option value="">All Categories</option>
             {categories.map((cat) => (
               <option key={cat.$id} value={cat.$id}>
-                {" "}
-                {/* Changed from cat.name to cat._id */}
                 {cat.name}
               </option>
             ))}
@@ -307,8 +387,6 @@ export default function WallpaperPage() {
                   <option value="">Select Category</option>
                   {categories.map((cat) => (
                     <option key={cat.$id} value={cat.$id}>
-                      {" "}
-                      {/* Changed from cat.name to cat._id */}
                       {cat.name}
                     </option>
                   ))}
@@ -349,62 +427,75 @@ export default function WallpaperPage() {
           </div>
         )}
 
+        {/* Loading state */}
+        {loadingWallpapers && (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent"></div>
+          </div>
+        )}
+
         {/* Wallpapers Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {wallpapers.map((item) => (
-            <div
-              key={item.$id} // Changed from _id to $id
-              className="bg-white rounded-lg shadow overflow-hidden relative group"
-            >
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => handleDelete(item.$id)} // Changed from _id to $id
-                  className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
-                  title="Delete wallpaper"
+        {!loadingWallpapers && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {wallpapers.length > 0 ? (
+              wallpapers.map((item) => (
+                <div
+                  key={item.$id}
+                  className="bg-white rounded-lg shadow overflow-hidden relative group"
                 >
-                  <Trash2 size={16} />
-                </button>
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleDelete(item.$id)}
+                      className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
+                      title="Delete wallpaper"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <div className="aspect-w-16 aspect-h-9">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = PLACEHOLDER_IMAGE;
+                        e.target.onerror = null;
+                      }}
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-medium text-gray-800">{item.title}</h3>
+                    <span className="text-sm text-gray-500">
+                      {getCategoryName(item.categoryId) || "Unknown"}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8 text-gray-500">
+                No wallpapers found. Try adjusting your filters or add some
+                wallpapers.
               </div>
-              <div className="aspect-w-16 aspect-h-9">
-                <img
-                  src={item.imageUrl} // Changed from image to imageUrl
-                  alt={item.title} // Changed from name to title
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src = PLACEHOLDER_IMAGE;
-                    e.target.onerror = null;
-                  }}
-                />
-              </div>
-              <div className="p-4">
-                <h3 className="font-medium text-gray-800">{item.title}</h3>{" "}
-                {/* Changed from name to title */}
-                <span className="text-sm text-gray-500">
-                  {getCategoryName(item.categoryId) || "Unknown"}{" "}
-                  {/* Changed from category to categoryId */}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* Pagination */}
         <div className="flex justify-center gap-2 mt-6">
           <button
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            onClick={handlePrevPage}
             disabled={currentPage === 1}
             className="p-2 rounded-lg border hover:bg-gray-100 disabled:opacity-50"
           >
             <ChevronLeft size={20} />
           </button>
           <span className="py-2 px-4 border rounded-lg bg-white">
-            Page {currentPage} of {totalPages}
+            Page {currentPage}
+            {/* We don't know the total pages with cursor pagination */}
           </span>
           <button
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
-            disabled={currentPage === totalPages}
+            onClick={handleNextPage}
+            disabled={!hasMore}
             className="p-2 rounded-lg border hover:bg-gray-100 disabled:opacity-50"
           >
             <ChevronRight size={20} />

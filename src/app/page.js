@@ -55,6 +55,19 @@ export default function Home() {
               </p>
             </div>
           </Link>
+          <Link href="/send-notification" className="block">
+            <div className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Send Notification
+                </h2>
+                <Plus className="text-blue-600" size={24} />
+              </div>
+              <p className="text-gray-600">
+                Notify users about new wallpapers or updates
+              </p>
+            </div>
+          </Link>
         </div>
       </div>
     </main>

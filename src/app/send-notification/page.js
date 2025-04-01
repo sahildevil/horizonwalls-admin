@@ -6,6 +6,7 @@ export default function SendNotification() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState(null);
   const router = useRouter();
 
   const handleSendNotification = async () => {
@@ -15,9 +16,9 @@ export default function SendNotification() {
     }
 
     setLoading(true);
+    setStats(null);
 
     try {
-      // Replace with your backend API endpoint to send notifications
       const response = await fetch("/api/send-notification", {
         method: "POST",
         headers: {
@@ -26,11 +27,20 @@ export default function SendNotification() {
         body: JSON.stringify({ title, body }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        alert("Notification sent successfully!");
-        router.push("/"); // Redirect back to the dashboard
+        setStats({
+          totalSent: data.totalSent,
+          totalFailed: data.totalFailed,
+          totalTokens: data.totalTokens,
+        });
+
+        alert(
+          `Notifications sent successfully!\nSent: ${data.totalSent}\nFailed: ${data.totalFailed}\nTotal Tokens: ${data.totalTokens}`
+        );
       } else {
-        alert("Failed to send notification. Please try again.");
+        alert(`Failed to send notification: ${data.error || "Unknown error"}`);
       }
     } catch (error) {
       console.error("Error sending notification:", error);
@@ -80,6 +90,32 @@ export default function SendNotification() {
           >
             {loading ? "Sending..." : "Send Notification"}
           </button>
+
+          {stats && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-lg font-semibold mb-2">Results:</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center">
+                  <p className="text-xl font-bold text-green-600">
+                    {stats.totalSent}
+                  </p>
+                  <p className="text-sm text-gray-600">Sent</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-red-600">
+                    {stats.totalFailed}
+                  </p>
+                  <p className="text-sm text-gray-600">Failed</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-blue-600">
+                    {stats.totalTokens}
+                  </p>
+                  <p className="text-sm text-gray-600">Total Tokens</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>
